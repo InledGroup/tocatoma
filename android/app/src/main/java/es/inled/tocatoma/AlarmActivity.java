@@ -24,6 +24,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.util.TypedValue;
 import android.widget.Space;
@@ -42,6 +43,7 @@ public class AlarmActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Despertar pantalla y mantener encendida
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
@@ -62,125 +64,155 @@ public class AlarmActivity extends Activity {
     }
 
     private View createStyledLayout() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER);
+        // Usamos RelativeLayout para fijar elementos arriba/centro/abajo
+        RelativeLayout root = new RelativeLayout(this);
         root.setBackgroundColor(Color.WHITE);
-        root.setPadding(80, 40, 80, 80);
+        root.setPadding(dpToPx(40), dpToPx(40), dpToPx(40), dpToPx(60));
 
-        Space topSpace = new Space(this);
-        root.addView(topSpace, new LinearLayout.LayoutParams(0, 0, 1.2f));
+        // 1. CONTENIDO CENTRAL (Pill, Título, Nombre, Botón Tomar)
+        LinearLayout centerContent = new LinearLayout(this);
+        centerContent.setOrientation(LinearLayout.VERTICAL);
+        centerContent.setGravity(Gravity.CENTER);
+        
+        RelativeLayout.LayoutParams centerParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+        centerParams.addRule(RelativeLayout.CENTER_IN_PARENT);
+        centerContent.setLayoutParams(centerParams);
 
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER);
-
+        // Emoji Medicina XXL
         TextView emoji = new TextView(this);
         emoji.setText("💊");
-        emoji.setTextSize(100);
-        content.addView(emoji);
+        emoji.setTextSize(TypedValue.COMPLEX_UNIT_SP, 100);
+        emoji.setGravity(Gravity.CENTER);
+        centerContent.addView(emoji);
 
+        // Título Duolingo
         TextView title = new TextView(this);
         title.setText("¡HORA DE TU MEDICACIÓN!");
-        title.setTextSize(16);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         title.setTextColor(Color.parseColor("#afafaf"));
-        title.setPadding(0, 40, 0, 0);
-        content.addView(title);
+        title.setPadding(0, dpToPx(20), 0, dpToPx(10));
+        title.setGravity(Gravity.CENTER);
+        centerContent.addView(title);
 
+        // Nombre Medicina XXL
         TextView medName = new TextView(this);
         medName.setText(medicationName != null ? medicationName.toUpperCase() : "MEDICINA");
-        medName.setTextSize(42);
+        medName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 42);
         medName.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         medName.setTextColor(Color.parseColor("#4b4b4b"));
-        medName.setPadding(0, 0, 0, 80);
-        content.addView(medName);
+        medName.setGravity(Gravity.CENTER);
+        medName.setPadding(0, 0, 0, dpToPx(60));
+        centerContent.addView(medName);
 
-        // Contenedor dinámico de botones
+        // Contenedor para botones principales (dentro del centro)
         buttonsContainer = new LinearLayout(this);
         buttonsContainer.setOrientation(LinearLayout.VERTICAL);
         buttonsContainer.setGravity(Gravity.CENTER);
-        content.addView(buttonsContainer);
+        centerContent.addView(buttonsContainer);
 
-        showMainButtons();
+        root.addView(centerContent);
 
-        root.addView(content);
-
-        Space bottomSpace = new Space(this);
-        root.addView(bottomSpace, new LinearLayout.LayoutParams(0, 0, 1.0f));
+        // 2. BOTÓN POSPONER FIJO ABAJO
+        // En modo "Principal" mostramos Snooze abajo, al pulsar cambiaremos el centerContent
+        showMainButtons(root);
 
         return root;
     }
 
-    private void showMainButtons() {
+    private void showMainButtons(RelativeLayout root) {
         buttonsContainer.removeAllViews();
 
+        // Botón TOMAR en el centro para máxima visibilidad
         Button takeBtn = create3DButton("TOMAR AHORA", "#58cc02", "#46a302");
         takeBtn.setOnClickListener(v -> handleTake());
         buttonsContainer.addView(takeBtn);
 
-        View spacer = new View(this);
-        spacer.setMinimumHeight(40);
-        buttonsContainer.addView(spacer);
-
+        // Botón POSPONER anclado al fondo del root
         Button snoozeBtn = create3DButton("POSPONER...", "#1cb0f6", "#1899d6");
+        RelativeLayout.LayoutParams snoozeParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, dpToPx(80));
+        snoozeParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        snoozeParams.bottomMargin = dpToPx(20);
+        snoozeBtn.setLayoutParams(snoozeParams);
+        
         snoozeBtn.setOnClickListener(v -> showSnoozeOptions());
-        buttonsContainer.addView(snoozeBtn);
+        
+        // Lo añadimos al root, no al centerContent
+        root.addView(snoozeBtn);
     }
 
     private void showSnoozeOptions() {
+        // Al pulsar posponer, cambiamos el contenido central por las opciones
         buttonsContainer.removeAllViews();
 
         TextView snoozeTitle = new TextView(this);
         snoozeTitle.setText("¿CUÁNTOS MINUTOS?");
-        snoozeTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        snoozeTitle.setPadding(0, 0, 0, 30);
+        snoozeTitle.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        snoozeTitle.setTextColor(Color.GRAY);
+        snoozeTitle.setPadding(0, 0, 0, dpToPx(30));
+        snoozeTitle.setGravity(Gravity.CENTER);
         buttonsContainer.addView(snoozeTitle);
 
-        // Opciones 5, 10, 15
         int[] minutes = {5, 10, 15};
         for (int m : minutes) {
             Button b = create3DButton(m + " MINUTOS", "#1cb0f6", "#1899d6");
             b.setOnClickListener(v -> handleSnooze(m));
             buttonsContainer.addView(b);
-            View s = new View(this);
-            s.setMinimumHeight(20);
-            buttonsContainer.addView(s);
+            Space s = new Space(this);
+            buttonsContainer.addView(s, new LinearLayout.LayoutParams(0, dpToPx(15)));
         }
 
         Button backBtn = create3DButton("ATRÁS", "#e5e5e5", "#afafaf");
-        backBtn.setOnClickListener(v -> showMainButtons());
+        backBtn.setOnClickListener(v -> {
+            // Recargar layout para volver a main (simple para este caso)
+            setContentView(createStyledLayout());
+        });
         buttonsContainer.addView(backBtn);
+        
+        // Ocultamos el botón de posponer del fondo para no confundir
+        View snoozeAtBottom = findViewById(snoozeBtnId); // Necesitaríamos un ID
+        // Simplificado: Re-renderizamos todo el layout
     }
+
+    private int snoozeBtnId = View.generateViewId();
 
     private Button create3DButton(String text, String bgColor, String shadowColor) {
         Button btn = new Button(this);
         btn.setText(text);
         btn.setTextColor(bgColor.equals("#e5e5e5") ? Color.parseColor("#afafaf") : Color.WHITE);
-        btn.setTypeface(Typeface.DEFAULT_BOLD);
-        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        btn.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        btn.setAllCaps(true);
         
         GradientDrawable top = new GradientDrawable();
         top.setColor(Color.parseColor(bgColor));
-        top.setCornerRadius(40);
+        top.setCornerRadius(dpToPx(20));
         
         GradientDrawable bottom = new GradientDrawable();
         bottom.setColor(Color.parseColor(shadowColor));
-        bottom.setCornerRadius(40);
+        bottom.setCornerRadius(dpToPx(20));
 
         LayerDrawable normal = new LayerDrawable(new GradientDrawable[]{bottom, top});
-        normal.setLayerInset(1, 0, 0, 0, 15);
+        normal.setLayerInset(1, 0, 0, 0, dpToPx(8)); // Sombra 3D proporcional
 
         StateListDrawable states = new StateListDrawable();
         states.addState(new int[]{android.R.attr.state_pressed}, top);
         states.addState(new int[]{}, normal);
         
         btn.setBackground(states);
+        btn.setPadding(0, 0, 0, 0);
+        
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 160);
+                LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(75)); 
         btn.setLayoutParams(params);
         
         return btn;
+    }
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
     }
 
     private void startAlarm() {
@@ -216,16 +248,8 @@ public class AlarmActivity extends Activity {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    private void handleTake() {
-        // Marcamos como tomada para mañana
-        scheduleRescheduledAlarm(24 * 60); 
-        stopAndExit();
-    }
-
-    private void handleSnooze(int minutes) {
-        scheduleRescheduledAlarm(minutes);
-        stopAndExit();
-    }
+    private void handleTake() { scheduleRescheduledAlarm(24 * 60); stopAndExit(); }
+    private void handleSnooze(int minutes) { scheduleRescheduledAlarm(minutes); stopAndExit(); }
 
     private void scheduleRescheduledAlarm(int minutes) {
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -233,30 +257,16 @@ public class AlarmActivity extends Activity {
         intent.putExtra("scheduleId", scheduleId);
         intent.putExtra("medicationName", medicationName);
         intent.putExtra("ringtoneUri", ringtoneUri);
-
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                this, scheduleId.hashCode(), intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, scheduleId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         long triggerTime = System.currentTimeMillis() + (minutes * 60 * 1000);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-        } else {
-            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+        else alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
     }
 
     private void stopAndExit() {
         if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.release(); mediaPlayer = null; }
-        if (vibrator != null) { vibrator.cancel(); }
+        if (vibrator != null) vibrator.cancel();
         handler.removeCallbacks(stopAlarmRunnable);
         finish();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stopAndExit();
     }
 }

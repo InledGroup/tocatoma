@@ -84,6 +84,17 @@ public class AlarmPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void testAlarmUI(PluginCall call) {
+        Context context = getContext();
+        Intent intent = new Intent(context, AlarmActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra("medicationName", "MEDICINA DE PRUEBA");
+        intent.putExtra("scheduleId", "test_id");
+        context.startActivity(intent);
+        call.resolve();
+    }
+
+    @PluginMethod
     public void pickRingtone(PluginCall call) {
         Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);

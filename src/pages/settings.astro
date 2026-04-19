@@ -18,14 +18,19 @@ import MainLayout from '../layouts/MainLayout.astro';
       <button id="fix-permissions" class="btn-3d btn-3d-blue py-3 flex-1 text-xs">ACTIVAR AHORA</button>
     </div>
 
-		<div class="p-8 border-2 border-gray-100 rounded-[32px] space-y-8 bg-white">
+		<div class="p-8 border-2 border-gray-100 rounded-[32px] space-y-8 bg-white text-center">
 			<div>
-        <h3 class="font-black text-gray-700 uppercase tracking-tight text-base">Copia de Seguridad</h3>
-			  <p class="text-[11px] text-gray-400 font-bold uppercase mt-1">Exporta o restaura tus datos.</p>
+        <h3 class="font-black text-gray-700 uppercase tracking-tight text-base italic">Copia de Seguridad</h3>
+			  <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Exporta o restaura tu historial completo.</p>
       </div>
 			
       <div class="flex flex-col gap-6">
-        <button id="export-btn" class="btn-3d btn-3d-blue py-5 font-black">
+        <button id="test-ui-btn" class="btn-3d btn-3d-blue py-5 font-black">
+          <i data-lucide="bell" class="w-6 h-6 mr-2"></i>
+          PROBAR UI ALARMA
+        </button>
+
+        <button id="export-btn" class="btn-3d btn-3d-gray py-5 font-black text-gray-500">
           <i data-lucide="download" class="w-6 h-6 mr-2"></i>
           EXPORTAR DATOS
         </button>
@@ -39,20 +44,21 @@ import MainLayout from '../layouts/MainLayout.astro';
 		</div>
 
     <div class="p-8 border-2 border-gray-100 rounded-[32px] space-y-4 bg-gray-50/50 text-center">
-			<p class="text-[11px] text-gray-400 font-black uppercase tracking-widest leading-relaxed">Tocatoma v1.0.0<br/>&copy; Inled Group&reg; 2026. Licenciado bajo MIT-INLED</p>
+			<p class="text-[11px] text-gray-400 font-black uppercase tracking-widest leading-relaxed">Tocatoma Pro v1.1.0<br/>&copy; Inled Group&reg; 2026</p>
 		</div>
 	</div>
 
 	<script>
 		import { SqliteDatabase } from '../features/shared/infrastructure/SqliteDatabase';
     import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-    import { createIcons, Download, Upload, BellRing } from 'lucide';
+    import { createIcons, Download, Upload, BellRing, Bell } from 'lucide';
     import { registerPlugin } from '@capacitor/core';
     import { App } from '@capacitor/app';
 
     const AlarmPlugin = registerPlugin<any>('AlarmPlugin');
 
     const initSettings = async () => {
+      const testUiBtn = document.getElementById('test-ui-btn') as any;
       const exportBtn = document.getElementById('export-btn') as any;
       const importTrigger = document.getElementById('import-trigger-btn') as any;
       const importInput = document.getElementById('import-input') as any;
@@ -60,14 +66,14 @@ import MainLayout from '../layouts/MainLayout.astro';
       const fixBtn = document.getElementById('fix-permissions') as any;
       const statusText = document.getElementById('alarm-status-text');
 
-      createIcons({ icons: { Download, Upload, BellRing } });
+      createIcons({ icons: { Download, Upload, BellRing, Bell } });
 
       const checkPerms = async () => {
         try {
           const perms = await AlarmPlugin.checkPermissions();
           banner?.classList.remove('hidden'); banner?.classList.add('flex');
           if (perms.exactAlarm) {
-            statusText!.innerText = "PERMISOS ACTIVADOS";
+            statusText!.innerText = "PERMISOS ACTIVADOS CORRECTAMENTE";
             fixBtn!.classList.add('hidden');
           } else {
             statusText!.innerText = "ALARMAS DESACTIVADAS";
@@ -77,6 +83,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       };
 
       if (fixBtn) fixBtn.onclick = () => AlarmPlugin.requestPermissions();
+      if (testUiBtn) testUiBtn.onclick = () => AlarmPlugin.testAlarmUI();
+      
       checkPerms();
       App.addListener('appStateChange', ({ isActive }) => { if (isActive) checkPerms(); });
 
@@ -87,19 +95,19 @@ import MainLayout from '../layouts/MainLayout.astro';
           await db.init();
           const conn = db.getDb();
           const data = {
-            medications: (await conn.query("SELECT * FROM medications")).values,
-            schedules: (await conn.query("SELECT * FROM schedules")).values,
-            logs: (await conn.query("SELECT * FROM intake_logs")).values
+            medications: (await conn.query("SELECT * FROM medications")).values || [],
+            schedules: (await conn.query("SELECT * FROM schedules")).values || [],
+            logs: (await conn.query("SELECT * FROM intake_logs")).values || []
           };
           const fileName = `tocatoma_backup_${Date.now()}.json`;
           await Filesystem.writeFile({
             path: fileName,
-            data: JSON.stringify(data),
+            data: JSON.stringify(data, null, 2),
             directory: Directory.Documents,
             encoding: Encoding.UTF8,
           });
-          alert(`Backup guardado en Documentos.`);
-        } catch (e) { alert('Error al exportar'); }
+          alert(`Backup guardado con éxito en Documentos.`);
+        } catch (e) { alert('Error al exportar los datos.'); }
       };
 
       if (importTrigger) importTrigger.onclick = () => importInput.click();
@@ -107,36 +115,32 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (importInput) importInput.onchange = async (e: any) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = async (event) => {
           try {
             const data = JSON.parse(event.target?.result as string);
+            if (!data.medications || !data.schedules) throw new Error("Archivo no válido");
+            
             const db = SqliteDatabase.getInstance();
             await db.init();
             const conn = db.getDb();
-
-            // LIMPIEZA TOTAL ANTES DE IMPORTAR
             await conn.execute("DELETE FROM intake_logs; DELETE FROM schedules; DELETE FROM medications;");
-
-            for (const med of (data.medications || [])) {
-              await conn.run("INSERT INTO medications (id, name, photoUri, color, daysOfWeek) VALUES (?, ?, ?, ?, ?)", 
-                [med.id, med.name, med.photoUri, med.color, typeof med.daysOfWeek === 'string' ? med.daysOfWeek : JSON.stringify(med.daysOfWeek)]);
+            for (const med of data.medications) {
+              const days = typeof med.daysOfWeek === 'string' ? med.daysOfWeek : JSON.stringify(med.daysOfWeek || [0,1,2,3,4,5,6]);
+              await conn.run("INSERT OR REPLACE INTO medications (id, name, photoUri, color, daysOfWeek) VALUES (?, ?, ?, ?, ?)", 
+                [med.id, med.name, med.photoUri || null, med.color || 'card-yellow', days]);
             }
-            for (const sched of (data.schedules || [])) {
-              await conn.run("INSERT INTO schedules (id, medicationId, time, systemRingtoneUri) VALUES (?, ?, ?, ?)", 
-                [sched.id, sched.medicationId, sched.time, sched.systemRingtoneUri]);
+            for (const sched of data.schedules) {
+              await conn.run("INSERT OR REPLACE INTO schedules (id, medicationId, time, systemRingtoneUri) VALUES (?, ?, ?, ?)", 
+                [sched.id, sched.medicationId, sched.time, sched.systemRingtoneUri || '']);
             }
             for (const log of (data.logs || [])) {
-              await conn.run("INSERT INTO intake_logs (id, scheduleId, timestamp, status) VALUES (?, ?, ?, ?)", 
+              await conn.run("INSERT OR REPLACE INTO intake_logs (id, scheduleId, timestamp, status) VALUES (?, ?, ?, ?)", 
                 [log.id, log.scheduleId, log.timestamp, log.status]);
             }
-            alert("¡Importación completada con éxito!");
+            alert("¡Importación completada!");
             window.location.href = "/index.html";
-          } catch (err) { 
-            console.error(err);
-            alert("Error: El archivo no es un backup válido de Tocatoma."); 
-          }
+          } catch (err) { alert("Error crítico en la importación."); }
         };
         reader.readAsText(file);
       };
