@@ -4,7 +4,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
 <MainLayout title="Tocatoma">
 	<div class="flex flex-col items-center justify-center mt-4">
-    <!-- Selector de Fecha -->
+    <!-- Selector de Fecha estilo Duolingo -->
     <div class="flex items-center justify-between w-full mb-10 bg-gray-50 p-2 rounded-3xl border-2 border-gray-100">
       <button id="prev-day" class="p-4 hover:bg-white rounded-2xl transition-colors active:scale-90">
         <i data-lucide="chevron-left" class="w-7 h-7 text-brand-secondary"></i>
@@ -18,14 +18,14 @@ import MainLayout from '../layouts/MainLayout.astro';
       </button>
     </div>
 
-		<div id="medication-list" class="w-full space-y-8">
+		<div id="medication-list" class="w-full">
       <div class="p-12 border-2 border-gray-100 rounded-3xl flex flex-col items-center justify-center space-y-4">
         <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
         <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Cargando...</p>
       </div>
 		</div>
 
-    <div class="w-full pt-10">
+    <div class="w-full pt-10 pb-10">
       <a href="/medications/new.html" class="btn-3d btn-3d-green">
         <i data-lucide="plus-circle" class="w-6 h-6 mr-2"></i>
         AÑADIR MEDICINA
@@ -38,7 +38,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { SqliteMedicationRepository, SqliteScheduleRepository } from '../features/medication/infrastructure/SqliteRepositories';
     import { MedicationService } from '../features/medication/application/MedicationService';
     import { NativeAlarmService } from '../features/alarms/infrastructure/NativeAlarmService';
-    import { createIcons, Pill, ChevronLeft, ChevronRight, Bell, Clock, PlusCircle, CheckCircle2, Circle } from 'lucide';
+    import { createIcons, Pill, ChevronLeft, ChevronRight, Bell, Clock, CheckCircle2, Circle, PlusCircle } from 'lucide';
 
     let currentVisibleDate = new Date();
 
@@ -66,7 +66,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         const medsToday = meds.filter(m => m.daysOfWeek.includes(dayOfWeek));
 
         if (medsToday.length === 0) {
-          listEl.innerHTML = `<div class="p-12 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/30">
+          listEl.innerHTML = `<div class="p-12 border-2 border-dashed border-gray-100 rounded-[32px] text-center bg-gray-50/30">
             <p class="text-gray-400 font-black uppercase text-[10px] tracking-widest">Nada programado hoy</p>
           </div>`;
           return;
@@ -80,10 +80,10 @@ import MainLayout from '../layouts/MainLayout.astro';
           const time = schedules[0]?.time || '--:--';
 
           const card = document.createElement('div');
-          // Margen inferior forzado para separación de bloques
-          card.className = `card-3d ${isTaken ? 'card-green' : (med.color || 'card-yellow')} cursor-pointer mb-6`;
+          // Margen inferior mb-10 para efecto bloque Duolingo
+          card.className = `card-3d ${isTaken ? 'card-green' : (med.color || 'card-yellow')} cursor-pointer mb-10`;
           card.innerHTML = `
-            <div class="w-16 h-16 bg-white rounded-2xl overflow-hidden flex items-center justify-center border-2 border-black/5 shadow-inner shrink-0">
+            <div class="w-16 h-16 bg-white rounded-2xl overflow-hidden flex items-center justify-center border-2 border-black/5 shadow-inner shrink-0 ml-1">
               ${med.photoUri ? `<img src="${med.photoUri}" class="w-full h-full object-cover" />` : `<i data-lucide="pill" class="text-gray-400 w-8 h-8"></i>`}
             </div>
             <div class="flex-1 text-left ml-4 truncate">
@@ -93,8 +93,8 @@ import MainLayout from '../layouts/MainLayout.astro';
                 <span>${time}</span>
               </div>
             </div>
-            <div class="flex items-center px-2 shrink-0">
-               ${isTaken ? '<i data-lucide="check-circle-2" class="text-brand-primary w-10 h-10"></i>' : '<i data-lucide="circle" class="text-gray-300 w-10 h-10"></i>'}
+            <div class="flex items-center px-2 shrink-0 mr-1">
+               ${isTaken ? '<i data-lucide="check-circle-2" class="text-brand-primary w-11 h-11"></i>' : '<i data-lucide="circle" class="text-gray-300 w-11 h-11"></i>'}
             </div>
           `;
           
@@ -113,8 +113,10 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
 		function init() {
-      document.getElementById('prev-day')!.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() - 1); renderList(); };
-      document.getElementById('next-day')!.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() + 1); renderList(); };
+      const prevBtn = document.getElementById('prev-day');
+      const nextBtn = document.getElementById('next-day');
+      if (prevBtn) prevBtn.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() - 1); renderList(); };
+      if (nextBtn) nextBtn.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() + 1); renderList(); };
       renderList();
 		}
 

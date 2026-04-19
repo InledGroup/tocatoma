@@ -3,8 +3,8 @@ import MainLayout from '../layouts/MainLayout.astro';
 ---
 
 <MainLayout title="Ajustes">
-	<div class="space-y-8 pb-10">
-    <!-- BANNER DE ALARMAS MUDADO AQUÍ -->
+	<div class="space-y-10 pb-20">
+    <!-- Banner de Estado de Alarma -->
     <div id="permission-banner" class="hidden w-full p-6 card-purple card-3d flex-col space-y-4">
       <div class="flex items-center space-x-4">
         <div class="bg-white/40 p-3 rounded-2xl">
@@ -12,34 +12,34 @@ import MainLayout from '../layouts/MainLayout.astro';
         </div>
         <div class="flex-1 text-left">
           <p class="font-black text-gray-800 text-sm uppercase leading-tight">Estado Alarma</p>
-          <p id="alarm-status-text" class="text-[10px] text-gray-600 font-bold uppercase tracking-tight leading-tight">Comprobando permisos...</p>
+          <p id="alarm-status-text" class="text-[10px] text-gray-600 font-bold uppercase tracking-tight leading-tight">Comprobando...</p>
         </div>
       </div>
       <button id="fix-permissions" class="btn-3d btn-3d-blue py-3 flex-1 text-xs">ACTIVAR AHORA</button>
     </div>
 
-		<div class="p-6 border-2 border-gray-100 rounded-3xl space-y-6">
+		<div class="p-8 border-2 border-gray-100 rounded-[32px] space-y-8 bg-white">
 			<div>
-        <h3 class="font-black text-gray-700 uppercase tracking-tight text-sm">Copia de Seguridad</h3>
-			  <p class="text-[10px] text-gray-400 font-bold uppercase">Administra tus datos locales.</p>
+        <h3 class="font-black text-gray-700 uppercase tracking-tight text-base">Copia de Seguridad</h3>
+			  <p class="text-[11px] text-gray-400 font-bold uppercase mt-1">Exporta o restaura tus datos.</p>
       </div>
 			
-      <div class="flex flex-col gap-5">
-        <button id="export-btn" class="btn-3d btn-3d-blue">
-          <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+      <div class="flex flex-col gap-6">
+        <button id="export-btn" class="btn-3d btn-3d-blue py-5 font-black">
+          <i data-lucide="download" class="w-6 h-6 mr-2"></i>
           EXPORTAR DATOS
         </button>
         
-        <button id="import-trigger-btn" class="btn-3d btn-3d-gray">
-          <i data-lucide="upload" class="w-5 h-5 mr-2"></i>
+        <button id="import-trigger-btn" class="btn-3d btn-3d-gray py-5 text-gray-500 font-black">
+          <i data-lucide="upload" class="w-6 h-6 mr-2"></i>
           IMPORTAR DATOS
         </button>
         <input type="file" id="import-input" class="hidden" accept=".json" />
       </div>
 		</div>
 
-    <div class="p-6 border-2 border-gray-100 rounded-3xl space-y-4 bg-gray-50/30 text-center">
-			<p class="text-[10px] text-gray-300 font-black uppercase tracking-widest leading-relaxed">Tocatoma v1.0.0<br/>Desarrollado para Jaime</p>
+    <div class="p-8 border-2 border-gray-100 rounded-[32px] space-y-4 bg-gray-50/50 text-center">
+			<p class="text-[11px] text-gray-400 font-black uppercase tracking-widest leading-relaxed">Tocatoma v1.0.0<br/>&copy; Inled Group&reg; 2026. Licenciado bajo MIT-INLED</p>
 		</div>
 	</div>
 
@@ -53,11 +53,11 @@ import MainLayout from '../layouts/MainLayout.astro';
     const AlarmPlugin = registerPlugin<any>('AlarmPlugin');
 
     const initSettings = async () => {
-      const exportBtn = document.getElementById('export-btn');
-      const importTrigger = document.getElementById('import-trigger-btn');
-      const importInput = document.getElementById('import-input') as HTMLInputElement;
+      const exportBtn = document.getElementById('export-btn') as any;
+      const importTrigger = document.getElementById('import-trigger-btn') as any;
+      const importInput = document.getElementById('import-input') as any;
       const banner = document.getElementById('permission-banner');
-      const fixBtn = document.getElementById('fix-permissions');
+      const fixBtn = document.getElementById('fix-permissions') as any;
       const statusText = document.getElementById('alarm-status-text');
 
       createIcons({ icons: { Download, Upload, BellRing } });
@@ -65,13 +65,12 @@ import MainLayout from '../layouts/MainLayout.astro';
       const checkPerms = async () => {
         try {
           const perms = await AlarmPlugin.checkPermissions();
+          banner?.classList.remove('hidden'); banner?.classList.add('flex');
           if (perms.exactAlarm) {
-            banner?.classList.remove('hidden'); banner?.classList.add('flex');
-            statusText!.innerText = "PERMISOS ACTIVADOS CORRECTAMENTE";
+            statusText!.innerText = "PERMISOS ACTIVADOS";
             fixBtn!.classList.add('hidden');
           } else {
-            banner?.classList.remove('hidden'); banner?.classList.add('flex');
-            statusText!.innerText = "LAS ALARMAS ESTÁN DESACTIVADAS";
+            statusText!.innerText = "ALARMAS DESACTIVADAS";
             fixBtn!.classList.remove('hidden');
           }
         } catch (e) { console.warn(e); }
@@ -81,7 +80,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       checkPerms();
       App.addListener('appStateChange', ({ isActive }) => { if (isActive) checkPerms(); });
 
-      if (exportBtn) exportBtn.onclick = async () => {
+      if (exportBtn) exportBtn.onclick = async (e: any) => {
+        e.preventDefault();
         try {
           const db = SqliteDatabase.getInstance();
           await db.init();
@@ -99,13 +99,13 @@ import MainLayout from '../layouts/MainLayout.astro';
             encoding: Encoding.UTF8,
           });
           alert(`Backup guardado en Documentos.`);
-        } catch (e) { alert('Error exportando'); }
+        } catch (e) { alert('Error al exportar'); }
       };
 
       if (importTrigger) importTrigger.onclick = () => importInput.click();
 
-      importInput?.addEventListener('change', async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
+      if (importInput) importInput.onchange = async (e: any) => {
+        const file = e.target.files?.[0];
         if (!file) return;
 
         const reader = new FileReader();
@@ -121,7 +121,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
             for (const med of (data.medications || [])) {
               await conn.run("INSERT INTO medications (id, name, photoUri, color, daysOfWeek) VALUES (?, ?, ?, ?, ?)", 
-                [med.id, med.name, med.photoUri, med.color, med.daysOfWeek]);
+                [med.id, med.name, med.photoUri, med.color, typeof med.daysOfWeek === 'string' ? med.daysOfWeek : JSON.stringify(med.daysOfWeek)]);
             }
             for (const sched of (data.schedules || [])) {
               await conn.run("INSERT INTO schedules (id, medicationId, time, systemRingtoneUri) VALUES (?, ?, ?, ?)", 
@@ -131,12 +131,15 @@ import MainLayout from '../layouts/MainLayout.astro';
               await conn.run("INSERT INTO intake_logs (id, scheduleId, timestamp, status) VALUES (?, ?, ?, ?)", 
                 [log.id, log.scheduleId, log.timestamp, log.status]);
             }
-            alert("¡Importación completada!");
+            alert("¡Importación completada con éxito!");
             window.location.href = "/index.html";
-          } catch (err) { alert("Error: El archivo no es un backup válido."); }
+          } catch (err) { 
+            console.error(err);
+            alert("Error: El archivo no es un backup válido de Tocatoma."); 
+          }
         };
         reader.readAsText(file);
-      });
+      };
     };
 
     document.addEventListener('DOMContentLoaded', initSettings);
