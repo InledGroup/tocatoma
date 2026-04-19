@@ -72,5 +72,5 @@ npx cap open android
 
 ---
 
-Developed with ❤️ for **Jaime** by his Senior Software Architect.
-*© 2026 Inled Group® - MIT Licensed.*
+Developed with ❤️ by **JaimeGH**
+*© 2026 Inled Group® - MIT-INLED Licensed.*
