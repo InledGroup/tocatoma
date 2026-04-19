@@ -1,0 +1,13 @@
+{
+  "appId": "es.inled.tocatoma",
+  "appName": "Tocatoma",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

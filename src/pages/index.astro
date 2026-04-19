@@ -1,0 +1,124 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout title="Tocatoma">
+	<div class="flex flex-col items-center justify-center mt-4">
+    <!-- Selector de Fecha -->
+    <div class="flex items-center justify-between w-full mb-10 bg-gray-50 p-2 rounded-3xl border-2 border-gray-100">
+      <button id="prev-day" class="p-4 hover:bg-white rounded-2xl transition-colors active:scale-90">
+        <i data-lucide="chevron-left" class="w-7 h-7 text-brand-secondary"></i>
+      </button>
+      <div class="text-center">
+        <p id="current-date-label" class="font-black text-gray-700 uppercase tracking-tight text-base">Hoy</p>
+        <p id="current-full-date" class="text-[11px] text-gray-400 font-bold uppercase tracking-widest"></p>
+      </div>
+      <button id="next-day" class="p-4 hover:bg-white rounded-2xl transition-colors active:scale-90">
+        <i data-lucide="chevron-right" class="w-7 h-7 text-brand-secondary"></i>
+      </button>
+    </div>
+
+		<div id="medication-list" class="w-full space-y-8">
+      <div class="p-12 border-2 border-gray-100 rounded-3xl flex flex-col items-center justify-center space-y-4">
+        <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Cargando...</p>
+      </div>
+		</div>
+
+    <div class="w-full pt-10">
+      <a href="/medications/new.html" class="btn-3d btn-3d-green">
+        <i data-lucide="plus-circle" class="w-6 h-6 mr-2"></i>
+        AÑADIR MEDICINA
+      </a>
+    </div>
+	</div>
+
+	<script>
+		import { SqliteDatabase } from '../features/shared/infrastructure/SqliteDatabase';
+    import { SqliteMedicationRepository, SqliteScheduleRepository } from '../features/medication/infrastructure/SqliteRepositories';
+    import { MedicationService } from '../features/medication/application/MedicationService';
+    import { NativeAlarmService } from '../features/alarms/infrastructure/NativeAlarmService';
+    import { createIcons, Pill, ChevronLeft, ChevronRight, Bell, Clock, PlusCircle, CheckCircle2, Circle } from 'lucide';
+
+    let currentVisibleDate = new Date();
+
+		async function renderList() {
+      const listEl = document.getElementById('medication-list');
+      const dateLabel = document.getElementById('current-date-label');
+      const fullDateLabel = document.getElementById('current-full-date');
+      if (!listEl) return;
+
+      const today = new Date();
+      const isToday = currentVisibleDate.toDateString() === today.toDateString();
+      dateLabel!.innerText = isToday ? 'Hoy' : currentVisibleDate.toLocaleDateString('es-ES', { weekday: 'long' });
+      fullDateLabel!.innerText = currentVisibleDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }).toUpperCase();
+
+      try {
+        const db = SqliteDatabase.getInstance();
+        await db.init();
+        const medRepo = new SqliteMedicationRepository();
+        const schedRepo = new SqliteScheduleRepository();
+        const service = new MedicationService(medRepo, schedRepo, new NativeAlarmService());
+        
+        const meds = await medRepo.findAll();
+        const intakes = await service.getIntakesForDate(currentVisibleDate);
+        const dayOfWeek = currentVisibleDate.getDay();
+        const medsToday = meds.filter(m => m.daysOfWeek.includes(dayOfWeek));
+
+        if (medsToday.length === 0) {
+          listEl.innerHTML = `<div class="p-12 border-2 border-dashed border-gray-100 rounded-3xl text-center bg-gray-50/30">
+            <p class="text-gray-400 font-black uppercase text-[10px] tracking-widest">Nada programado hoy</p>
+          </div>`;
+          return;
+        }
+
+        listEl.innerHTML = '';
+        for (const med of medsToday) {
+          const schedules = await schedRepo.findByMedicationId(med.id);
+          const schedId = schedules[0]?.id;
+          const isTaken = schedId ? intakes.includes(schedId) : false;
+          const time = schedules[0]?.time || '--:--';
+
+          const card = document.createElement('div');
+          // Margen inferior forzado para separación de bloques
+          card.className = `card-3d ${isTaken ? 'card-green' : (med.color || 'card-yellow')} cursor-pointer mb-6`;
+          card.innerHTML = `
+            <div class="w-16 h-16 bg-white rounded-2xl overflow-hidden flex items-center justify-center border-2 border-black/5 shadow-inner shrink-0">
+              ${med.photoUri ? `<img src="${med.photoUri}" class="w-full h-full object-cover" />` : `<i data-lucide="pill" class="text-gray-400 w-8 h-8"></i>`}
+            </div>
+            <div class="flex-1 text-left ml-4 truncate">
+              <h3 class="font-black text-gray-800 uppercase tracking-tight text-lg truncate">${med.name}</h3>
+              <div class="flex items-center text-gray-600 font-black text-[11px] mt-1 uppercase">
+                <i data-lucide="clock" class="w-4 h-4 mr-1"></i>
+                <span>${time}</span>
+              </div>
+            </div>
+            <div class="flex items-center px-2 shrink-0">
+               ${isTaken ? '<i data-lucide="check-circle-2" class="text-brand-primary w-10 h-10"></i>' : '<i data-lucide="circle" class="text-gray-300 w-10 h-10"></i>'}
+            </div>
+          `;
+          
+          card.onclick = (e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-lucide="circle"]')) {
+              service.markAsTaken(schedId!, currentVisibleDate).then(() => renderList());
+            } else {
+              window.location.href = `/medications/detail.html?id=${med.id}`;
+            }
+          };
+          listEl.appendChild(card);
+        }
+        createIcons({ icons: { Pill, Bell, Clock, CheckCircle2, Circle, ChevronLeft, ChevronRight, PlusCircle } });
+      } catch (e) { console.error(e); }
+    }
+
+		function init() {
+      document.getElementById('prev-day')!.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() - 1); renderList(); };
+      document.getElementById('next-day')!.onclick = () => { currentVisibleDate.setDate(currentVisibleDate.getDate() + 1); renderList(); };
+      renderList();
+		}
+
+    document.addEventListener('DOMContentLoaded', init);
+    init();
+	</script>
+</MainLayout>

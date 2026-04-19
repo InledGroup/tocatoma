@@ -1,0 +1,95 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<link rel="icon" type="image/png" href="/tocatoma.png" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body class="bg-white min-h-screen flex flex-col">
+		<header class="border-b-2 border-gray-100 p-4 sticky top-0 bg-white z-40 flex justify-center items-center">
+			<img src="/tocatoma.png" alt="Logo" class="h-8 mr-2" />
+      <h1 class="text-2xl font-black text-center text-gray-700 tracking-tight uppercase">{title}</h1>
+		</header>
+		<main class="flex-1 overflow-y-auto p-6 pb-32">
+			<slot />
+		</main>
+    
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-100 flex justify-around items-center px-4 py-3 pb-safe z-50 h-24">
+      <a href="/index.html" class="nav-item flex flex-col items-center justify-center flex-1 h-full transition-all text-[#afafaf]" data-path="/index.html">
+        <div class="nav-block p-4 rounded-2xl transition-all duration-200 border-2 border-transparent">
+          <i data-lucide="home" class="w-8 h-8"></i>
+        </div>
+      </a>
+      <a href="/medications/new.html" class="nav-item flex flex-col items-center justify-center flex-1 h-full transition-all text-[#afafaf]" data-path="/medications/new.html">
+        <div class="nav-block p-4 rounded-2xl transition-all duration-200 border-2 border-transparent">
+          <i data-lucide="plus-circle" class="w-8 h-8"></i>
+        </div>
+      </a>
+      <a href="/settings.html" class="nav-item flex flex-col items-center justify-center flex-1 h-full transition-all text-[#afafaf]" data-path="/settings.html">
+        <div class="nav-block p-4 rounded-2xl transition-all duration-200 border-2 border-transparent">
+          <i data-lucide="settings" class="w-8 h-8"></i>
+        </div>
+      </a>
+    </nav>
+
+    <style is:global>
+      /* Estilo activo tipo Duolingo Screenshot */
+      .nav-item.active {
+        color: #1cb0f6 !important;
+      }
+
+      .nav-item.active .nav-block {
+        background-color: #ddf4ff;
+        border-color: #1cb0f6;
+        box-shadow: 0 6px 0 #1cb0f6;
+        transform: translateY(-4px);
+      }
+
+      .nav-item:active .nav-block {
+        transform: translateY(2px);
+        box-shadow: 0 0 0 #1cb0f6;
+      }
+    </style>
+
+    <script>
+      import { createIcons, Home, Settings, PlusCircle, Pill, Bell, ChevronRight, Camera, BellRing, Clock, Trash2, Pencil } from 'lucide';
+
+      const initIcons = () => {
+        try {
+          createIcons({
+            icons: { Home, Settings, PlusCircle, Pill, Bell, ChevronRight, Camera, BellRing, Clock, Trash2, Pencil }
+          });
+
+          // Highlight active nav item
+          const currentPath = window.location.pathname;
+          document.querySelectorAll('.nav-item').forEach(item => {
+            const path = item.getAttribute('data-path');
+            // Check both exact match and index.html vs root
+            if (currentPath === path || (currentPath === '/' && path === '/index.html') || (currentPath.endsWith('/') && currentPath + 'index.html' === path)) {
+              item.classList.add('active');
+            } else {
+              item.classList.remove('active');
+            }
+          });
+        } catch (e) {
+          console.error('Lucide error', e);
+        }
+      };
+
+      document.addEventListener('DOMContentLoaded', initIcons);
+      initIcons();
+    </script>
+	</body>
+</html>

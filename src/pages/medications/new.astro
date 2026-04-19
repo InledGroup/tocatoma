@@ -1,0 +1,178 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+---
+
+<MainLayout title="Medicina">
+	<div class="space-y-6">
+		<div class="space-y-2">
+			<label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Nombre de la medicina</label>
+			<input type="text" id="med-name" placeholder="Ej. Ibuprofeno" class="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-brand-secondary outline-none font-bold text-gray-700 shadow-inner bg-gray-50/30" />
+		</div>
+
+		<div class="space-y-2">
+			<label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Hora de la toma</label>
+			<input type="time" id="med-time" class="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-brand-secondary outline-none font-bold text-gray-700 shadow-inner bg-gray-50/30" />
+		</div>
+
+    <div class="space-y-3">
+			<label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest text-left">Días de la semana</label>
+			<div class="flex justify-between gap-1" id="days-selector">
+        {['D','L','M','X','J','V','S'].map((day, i) => (
+          <button type="button" data-day={i} class="day-btn w-10 h-10 rounded-xl border-2 border-gray-100 font-black text-xs transition-all active:scale-90 bg-white text-gray-400" data-selected="false">
+            {day}
+          </button>
+        ))}
+      </div>
+		</div>
+
+		<div class="space-y-2">
+			<label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest text-left">Tono de Alarma</label>
+			<button type="button" id="pick-ringtone" class="card-3d w-full p-4 flex justify-between items-center bg-gray-50 border-gray-100 shadow-[0_4px_0_#e5e5e5] active:shadow-none active:translate-y-[4px]">
+				<span id="ringtone-name" class="font-bold text-gray-400 italic text-sm text-left flex-1 truncate">Predeterminado</span>
+				<i data-lucide="bell" class="w-5 h-5 text-gray-300"></i>
+			</button>
+      <input type="hidden" id="ringtone-uri" />
+		</div>
+
+    <div class="space-y-3">
+			<label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Color de la tarjeta</label>
+			<div class="flex justify-between gap-2" id="color-selector">
+        <button type="button" data-color="card-yellow" class="w-10 h-10 rounded-full bg-[#ffc800] border-4 border-white shadow-md active:scale-90 transition-transform"></button>
+        <button type="button" data-color="card-blue" class="w-10 h-10 rounded-full bg-[#1cb0f6] border-4 border-white shadow-md active:scale-90 transition-transform"></button>
+        <button type="button" data-color="card-orange" class="w-10 h-10 rounded-full bg-[#ff9600] border-4 border-white shadow-md active:scale-90 transition-transform"></button>
+        <button type="button" data-color="card-purple" class="w-10 h-10 rounded-full bg-[#ce82ff] border-4 border-white shadow-md active:scale-90 transition-transform"></button>
+      </div>
+      <input type="hidden" id="med-color" value="card-yellow" />
+		</div>
+
+    <div class="flex items-center space-x-3 p-4 bg-gray-50 rounded-3xl border-2 border-gray-100">
+      <input type="checkbox" id="should-photo" class="w-6 h-6 rounded-lg accent-brand-primary" />
+      <label for="should-photo" class="font-black text-gray-500 text-[10px] uppercase tracking-wider">Hacer foto de la caja</label>
+    </div>
+
+    <div class="pt-4 space-y-4">
+      <button type="button" id="save-med" class="btn-3d btn-3d-green">
+        <span id="save-label" class="flex items-center justify-center font-black"><i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i>GUARDAR</span>
+      </button>
+      <a href="/index.html" class="btn-3d btn-3d-gray no-underline">CANCELAR</a>
+    </div>
+	</div>
+
+	<script>
+		import { SqliteDatabase } from '../../features/shared/infrastructure/SqliteDatabase';
+    import { SqliteMedicationRepository, SqliteScheduleRepository } from '../../features/medication/infrastructure/SqliteRepositories';
+    import { NativeAlarmService } from '../../features/alarms/infrastructure/NativeAlarmService';
+    import { MedicationService } from '../../features/medication/application/MedicationService';
+
+    function init() {
+      const pickBtn = document.getElementById('pick-ringtone');
+      const ringtoneNameEl = document.getElementById('ringtone-name');
+      const ringtoneUriInput = document.getElementById('ringtone-uri') as HTMLInputElement;
+      const saveBtn = document.getElementById('save-med');
+      const shouldPhotoInput = document.getElementById('should-photo') as HTMLInputElement;
+      const colorInput = document.getElementById('med-color') as HTMLInputElement;
+      const nameInput = document.getElementById('med-name') as HTMLInputElement;
+      const timeInput = document.getElementById('med-time') as HTMLInputElement;
+      const dayBtns = document.querySelectorAll('.day-btn');
+      const colorBtns = document.querySelectorAll('#color-selector button');
+
+      if (!saveBtn) return;
+
+      const toggleDay = (btn: Element, active?: boolean) => {
+        const isNowActive = active !== undefined ? active : btn.getAttribute('data-selected') !== 'true';
+        btn.setAttribute('data-selected', isNowActive ? 'true' : 'false');
+        if (isNowActive) {
+          btn.classList.add('bg-brand-secondary', 'text-white', 'border-brand-secondary', 'shadow-[0_4px_0_#1899d6]');
+          btn.classList.remove('bg-white', 'text-gray-400');
+        } else {
+          btn.classList.remove('bg-brand-secondary', 'text-white', 'border-brand-secondary', 'shadow-[0_4px_0_#1899d6]');
+          btn.classList.add('bg-white', 'text-gray-400');
+        }
+      };
+
+      dayBtns.forEach(btn => btn.onclick = () => toggleDay(btn));
+
+      const selectColor = (colorClass: string) => {
+        colorBtns.forEach(b => b.classList.remove('ring-4'));
+        const target = document.querySelector(`[data-color="${colorClass}"]`);
+        target?.classList.add('ring-4');
+        colorInput.value = colorClass;
+      };
+
+      colorBtns.forEach(btn => btn.onclick = () => selectColor(btn.getAttribute('data-color')!));
+
+      const loadData = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('id');
+        
+        try {
+          const db = SqliteDatabase.getInstance();
+          await db.init();
+          const medRepo = new SqliteMedicationRepository();
+          const schedRepo = new SqliteScheduleRepository();
+
+          if (editId) {
+            const med = await medRepo.findById(editId);
+            const scheds = await schedRepo.findByMedicationId(editId);
+            if (med) {
+              nameInput.value = med.name;
+              timeInput.value = scheds[0]?.time || '';
+              selectColor(med.color || 'card-yellow');
+              dayBtns.forEach(btn => {
+                const day = parseInt(btn.getAttribute('data-day')!);
+                toggleDay(btn, med.daysOfWeek.includes(day));
+              });
+              document.getElementById('save-label')!.innerText = 'ACTUALIZAR';
+            }
+          } else {
+            selectColor('card-yellow');
+            dayBtns.forEach(btn => toggleDay(btn, true)); // Default all
+          }
+        } catch(e) { console.error('Load data error', e); }
+      };
+
+      if (pickBtn) {
+        pickBtn.onclick = async () => {
+          const alarmService = new NativeAlarmService();
+          try {
+            const uri = await alarmService.pickRingtone();
+            ringtoneUriInput.value = uri;
+            ringtoneNameEl!.innerText = "¡Cambiado!";
+          } catch (e) { console.warn(e); }
+        };
+      }
+
+      if (saveBtn) {
+        saveBtn.onclick = async () => {
+          const selectedDays = Array.from(dayBtns)
+            .filter(b => b.getAttribute('data-selected') === 'true')
+            .map(b => parseInt(b.getAttribute('data-day')!));
+
+          if (!nameInput.value || !timeInput.value || selectedDays.length === 0) {
+            alert('¡Faltan datos!'); return;
+          }
+
+          try {
+            saveBtn.innerHTML = '<div class="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            const db = SqliteDatabase.getInstance();
+            await db.init();
+            const service = new MedicationService(new SqliteMedicationRepository(), new SqliteScheduleRepository(), new NativeAlarmService());
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            await service.registerMedication(nameInput.value, timeInput.value, ringtoneUriInput.value, colorInput.value, selectedDays, shouldPhotoInput.checked, urlParams.get('id') || undefined);
+            window.location.href = '/index.html';
+          } catch (e) {
+            console.error(e);
+            alert('Error al guardar');
+            saveBtn.innerHTML = '<span class="flex items-center justify-center font-black">GUARDAR</span>';
+          }
+        };
+      }
+
+      loadData();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    init();
+	</script>
+</MainLayout>

@@ -1,0 +1,70 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+---
+
+<MainLayout title="Detalles">
+	<div id="detail-container" class="space-y-6">
+    <div class="p-12 flex justify-center">
+      <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+	</div>
+
+	<script>
+		import { SqliteDatabase } from '../../features/shared/infrastructure/SqliteDatabase';
+    import { SqliteMedicationRepository, SqliteScheduleRepository } from '../../features/medication/infrastructure/SqliteRepositories';
+    import { createIcons, Trash2, Clock, Pill, Pencil } from 'lucide';
+
+    async function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('id');
+      const container = document.getElementById('detail-container');
+      if (!id || !container) return;
+
+      const db = SqliteDatabase.getInstance();
+      await db.init();
+      const medRepo = new SqliteMedicationRepository();
+      const schedRepo = new SqliteScheduleRepository();
+
+      const med = await medRepo.findById(id);
+      const schedules = await schedRepo.findByMedicationId(id);
+
+      if (!med || !container) return;
+
+      container.innerHTML = `
+        <div class="card-3d ${med.color || 'card-yellow'} flex-col items-center text-center p-8 space-y-4">
+          <div class="w-32 h-32 bg-white rounded-3xl overflow-hidden border-4 border-black/5 flex items-center justify-center shadow-inner">
+            ${med.photoUri ? `<img src="${med.photoUri}" class="w-full h-full object-cover" />` : '<i data-lucide="pill" class="w-16 h-16 text-gray-300"></i>'}
+          </div>
+          <h2 class="text-3xl font-black text-gray-800 uppercase tracking-tight">${med.name}</h2>
+          <div class="flex items-center space-x-2 bg-black/5 px-4 py-2 rounded-2xl font-black text-gray-600">
+            <i data-lucide="clock" class="w-5 h-5"></i>
+            <span>${schedules[0]?.time || '--:--'}</span>
+          </div>
+        </div>
+
+        <div class="pt-8 space-y-4">
+          <a href="/medications/new.html?id=${med.id}" class="btn-3d btn-3d-blue flex items-center justify-center space-x-2 no-underline">
+            <i data-lucide="pencil" class="w-5 h-5"></i>
+            <span>EDITAR MEDICINA</span>
+          </a>
+          <button id="delete-btn" class="btn-3d btn-3d-danger flex items-center justify-center space-x-2">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+            <span>ELIMINAR</span>
+          </button>
+          <a href="/index.html" class="btn-3d btn-3d-gray no-underline">VOLVER</a>
+        </div>
+      `;
+
+      createIcons({ icons: { Trash2, Clock, Pill, Pencil } });
+
+      document.getElementById('delete-btn')?.addEventListener('click', async () => {
+        if (confirm('¿Seguro que quieres eliminar esta medicina?')) {
+          await medRepo.delete(id);
+          window.location.href = '/index.html';
+        }
+      });
+    }
+
+    init();
+	</script>
+</MainLayout>
