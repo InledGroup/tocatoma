@@ -29,6 +29,8 @@ import android.widget.TextView;
 import android.util.TypedValue;
 import android.widget.Space;
 
+import android.app.NotificationManager;
+
 public class AlarmActivity extends Activity {
     private MediaPlayer mediaPlayer;
     private Vibrator vibrator;
@@ -48,6 +50,9 @@ public class AlarmActivity extends Activity {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            // Intentar desbloquear si no hay PIN
+            android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null) km.requestDismissKeyguard(this, null);
         } else {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                     | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
@@ -58,6 +63,12 @@ public class AlarmActivity extends Activity {
         medicationName = getIntent().getStringExtra("medicationName");
         ringtoneUri = getIntent().getStringExtra("ringtoneUri");
         scheduleId = getIntent().getStringExtra("scheduleId");
+
+        // Cancelar la notificación que lanzó esto
+        if (scheduleId != null) {
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            nm.cancel(scheduleId.hashCode());
+        }
 
         setContentView(createStyledLayout());
         startAlarm();
